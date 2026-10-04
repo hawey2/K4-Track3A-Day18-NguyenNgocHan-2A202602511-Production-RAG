@@ -1,0 +1,181 @@
+{
+  "aggregate": {
+    "faithfulness": 0.8141666666666667,
+    "answer_relevancy": 0.8153902085934192,
+    "context_precision": 0.9333333332833333,
+    "context_recall": 0.8666666666666666
+  },
+  "num_questions": 20,
+  "failures": [
+    {
+      "question": "Bao lâu phải đổi mật khẩu một lần?",
+      "ground_truth": "Theo chính sách hiện hành (v2.0), mật khẩu phải được thay đổi mỗi 120 ngày. Chính sách cũ yêu cầu 90 ngày nhưng đã bị thay thế.",
+      "answer": "Không tìm thấy.",
+      "avg_score": 0.3958,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.0,
+      "metric_scores": {
+        "faithfulness": 0.0,
+        "answer_relevancy": 0.0,
+        "context_precision": 0.5833,
+        "context_recall": 1.0
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=1.00 precision=0.58 → query ok? → node hỏng: faithfulness"
+    },
+    {
+      "question": "Một nhân viên Senior có 9 năm thâm niên được nghỉ bao nhiêu ngày phép năm và lương trong khoảng nào?",
+      "ground_truth": "Theo chính sách v2024: 15 ngày cơ bản + 3 ngày thâm niên (9÷3=3) = 18 ngày phép. Lương Senior (P3-P4): 20-35 triệu VNĐ/tháng.",
+      "answer": "Nhân viên Senior có 9 năm thâm niên được nghỉ 18 ngày phép năm (15 + 3). Lương của nhân viên này là có lương.",
+      "avg_score": 0.6729,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.3333,
+      "metric_scores": {
+        "faithfulness": 0.3333,
+        "answer_relevancy": 0.8583,
+        "context_precision": 1.0,
+        "context_recall": 0.5
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=0.50 precision=1.00 → query ok? → node hỏng: faithfulness"
+    },
+    {
+      "question": "Nhân viên tạm ứng 15 triệu, sau 20 ngày mới thanh toán. Bị phạt bao nhiêu?",
+      "ground_truth": "Thời hạn thanh toán là 15 ngày. Quá hạn 5 ngày, bị tính phí 2%/tháng trên 15.000.000 VNĐ = 300.000 VNĐ/tháng (tính pro-rata khoảng 50.000 VNĐ cho 5 ngày).",
+      "answer": "Nhân viên sẽ bị phạt 2% trên số tiền tạm ứng chưa hoàn ứng là 15 triệu VNĐ. Tính phạt như sau:\n\n2% x 15.000.000 VNĐ = 300.000 VNĐ.\n\nVậy, nhân viên bị phạt 300.000 VNĐ.",
+      "avg_score": 0.7314,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.2,
+      "metric_scores": {
+        "faithfulness": 0.2,
+        "answer_relevancy": 0.8923,
+        "context_precision": 0.8333,
+        "context_recall": 1.0
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=1.00 precision=0.83 → query ok? → node hỏng: faithfulness"
+    },
+    {
+      "question": "Nếu cần mua một chiếc laptop 30 triệu cho nhân viên mới, ai phê duyệt và cần gì từ phòng CNTT?",
+      "ground_truth": "Laptop 30 triệu nằm trong khoảng 5-50 triệu nên cần Giám đốc phòng ban (Director) phê duyệt. Ngoài ra, mua sắm thiết bị CNTT cần có xác nhận cấu hình kỹ thuật từ phòng CNTT trước khi đề xuất. Cần đính kèm ít nhất 3 báo giá vì trên 10 triệu.",
+      "answer": "Cần Giám đốc phòng ban (Director) phê duyệt cho đơn hàng 30 triệu. Ngoài ra, cần có xác nhận của phòng CNTT về cấu hình kỹ thuật trước khi đề xuất.",
+      "avg_score": 0.7318,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.5,
+      "metric_scores": {
+        "faithfulness": 0.5,
+        "answer_relevancy": 0.7604,
+        "context_precision": 1.0,
+        "context_recall": 0.6667
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=0.67 precision=1.00 → query ok? → node hỏng: faithfulness"
+    },
+    {
+      "question": "Nghỉ phép không lương 20 ngày cần ai phê duyệt?",
+      "ground_truth": "Nghỉ 16-30 ngày cần phê duyệt của Giám đốc điều hành (CEO). Lưu ý: nghỉ trên 14 ngày không lương, nhân viên phải tự đóng phần bảo hiểm của mình.",
+      "answer": "Cần phê duyệt của Giám đốc điều hành (CEO).",
+      "avg_score": 0.8215,
+      "worst_metric": "context_recall",
+      "worst_score": 0.5,
+      "metric_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.786,
+        "context_precision": 1.0,
+        "context_recall": 0.5
+      },
+      "diagnosis": "Thiếu chunk chứa câu trả lời (retrieval miss)",
+      "suggested_fix": "Cải thiện chunking (thử hierarchical/structure-aware), thêm BM25 vào hybrid search, giảm child_size",
+      "error_tree": "Answer sai/cao → context đúng? recall=0.50 precision=1.00 → query ok? → node hỏng: context_recall"
+    },
+    {
+      "question": "Nhân viên được tài trợ khóa học 25 triệu, nghỉ việc sau 8 tháng hoàn thành khóa học. Phải hoàn trả bao nhiêu?",
+      "ground_truth": "Nhân viên phải cam kết làm việc ít nhất 1 năm sau khi hoàn thành khóa học. Nghỉ sau 8 tháng là trước hạn cam kết, phải hoàn trả 100% chi phí tức 25.000.000 VNĐ.",
+      "answer": "Nhân viên phải hoàn trả **100% chi phí** đào tạo đã được tài trợ, tức là **25 triệu VNĐ**.",
+      "avg_score": 0.8414,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.5,
+      "metric_scores": {
+        "faithfulness": 0.5,
+        "answer_relevancy": 0.8655,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=1.00 precision=1.00 → query ok? → node hỏng: faithfulness"
+    },
+    {
+      "question": "Thông tin lương thuộc cấp độ phân loại dữ liệu nào?",
+      "ground_truth": "Theo quy chế chi trả lương, thông tin lương được phân loại là dữ liệu Bí mật, cấm chia sẻ với đồng nghiệp. Theo chính sách phân loại dữ liệu, dữ liệu Bí mật (cấp 3) phải mã hóa khi truyền và hạn chế truy cập theo need-to-know.",
+      "answer": "Thông tin lương thuộc cấp độ phân loại dữ liệu **Bí mật**.",
+      "avg_score": 0.8428,
+      "worst_metric": "context_recall",
+      "worst_score": 0.5,
+      "metric_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.871,
+        "context_precision": 1.0,
+        "context_recall": 0.5
+      },
+      "diagnosis": "Thiếu chunk chứa câu trả lời (retrieval miss)",
+      "suggested_fix": "Cải thiện chunking (thử hierarchical/structure-aware), thêm BM25 vào hybrid search, giảm child_size",
+      "error_tree": "Answer sai/cao → context đúng? recall=0.50 precision=1.00 → query ok? → node hỏng: context_recall"
+    },
+    {
+      "question": "Có cần kích hoạt xác thực đa yếu tố (MFA) không?",
+      "ground_truth": "Có, theo chính sách mật khẩu v2.0 hiện hành, tất cả nhân viên bắt buộc kích hoạt MFA cho email, VPN và hệ thống nội bộ. Chính sách cũ v1.0 không yêu cầu MFA.",
+      "answer": "Có, tất cả nhân viên **bắt buộc** kích hoạt MFA cho tài khoản email, VPN và các hệ thống nội bộ.",
+      "avg_score": 0.8496,
+      "worst_metric": "context_recall",
+      "worst_score": 0.5,
+      "metric_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.8985,
+        "context_precision": 1.0,
+        "context_recall": 0.5
+      },
+      "diagnosis": "Thiếu chunk chứa câu trả lời (retrieval miss)",
+      "suggested_fix": "Cải thiện chunking (thử hierarchical/structure-aware), thêm BM25 vào hybrid search, giảm child_size",
+      "error_tree": "Answer sai/cao → context đúng? recall=0.50 precision=1.00 → query ok? → node hỏng: context_recall"
+    },
+    {
+      "question": "Thâm niên bao nhiêu năm thì được cộng thêm ngày phép?",
+      "ground_truth": "Theo chính sách v2024 hiện hành, nhân viên có thâm niên từ 3 năm trở lên được cộng thêm 1 ngày phép cho mỗi 3 năm. Chính sách cũ v2023 yêu cầu 5 năm.",
+      "answer": "Nhân viên có thâm niên từ **5 năm trở lên** được cộng thêm **1 ngày phép** cho mỗi 5 năm làm việc liên tục.",
+      "avg_score": 0.8808,
+      "worst_metric": "context_precision",
+      "worst_score": 0.5833,
+      "metric_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": 0.9399,
+        "context_precision": 0.5833,
+        "context_recall": 1.0
+      },
+      "diagnosis": "Có nhiều chunk nhiễu chen giữa chunk đúng (retrieval noise)",
+      "suggested_fix": "Thêm reranking, lọc theo metadata, giới hạn top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=1.00 precision=0.58 → query ok? → node hỏng: context_precision"
+    },
+    {
+      "question": "Lương thử việc của nhân viên Junior mức cao nhất là bao nhiêu?",
+      "ground_truth": "Junior cao nhất là 20.000.000 VNĐ/tháng. Lương thử việc = 85% x 20.000.000 = 17.000.000 VNĐ/tháng.",
+      "answer": "Lương thử việc của nhân viên Junior là 85% của mức lương gross cao nhất trong khung lương, tức là 20.000.000 VNĐ. Tính toán như sau: \n\n20.000.000 VNĐ × 85% = 17.000.000 VNĐ.\n\nDo đó, lương thử việc cao nhất của nhân viên Junior là 17.000.000 VNĐ.",
+      "avg_score": 0.8935,
+      "worst_metric": "faithfulness",
+      "worst_score": 0.75,
+      "metric_scores": {
+        "faithfulness": 0.75,
+        "answer_relevancy": 0.8241,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      },
+      "diagnosis": "LLM đang suy diễn ngoài context (hallucination)",
+      "suggested_fix": "Siết prompt 'trả lời CHỈ dựa trên context', hạ temperature=0, giảm top_k context",
+      "error_tree": "Answer sai/cao → context đúng? recall=1.00 precision=1.00 → query ok? → node hỏng: faithfulness"
+    }
+  ]
+}

@@ -15,8 +15,21 @@ COLLECTION_NAME = "lab18_production"
 NAIVE_COLLECTION = "lab18_naive"
 
 # --- Embedding ---
-EMBEDDING_MODEL = "BAAI/bge-m3"
-EMBEDDING_DIM = 1024
+# all-MiniLM-L6-v2: 384-dim, đã cache sẵn trên máy (bge-m3 cần tải ~2.3GB).
+# EMBEDDING_DIM suy ra tự động từ model ở DenseSearch nếu để None —
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_DIM = 384
+
+# --- Reranking ---
+# ⚠️ FlashRank chỉ có ms-marco-TinyBERT-L-2-v2 (English-only). Test với query
+# tiếng Anh trên passage tiếng Việt cho score 0.0000 toàn bộ -> dùng cho
+# tiếng Việt là mù hoàn toàn, phá hỏng ranking đúng của BM25/Dense.
+# Vì vậy mặc định "auto": thử cross-encoder đa ngôn ngữ trước.
+RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
+RERANKER_BACKEND = "auto"  # "cross-encoder" | "flashrank" | "auto"
+
+# --- LLM ---
+LLM_MODEL = "gpt-4o-mini"
 
 # --- Chunking ---
 HIERARCHICAL_PARENT_SIZE = 2048
