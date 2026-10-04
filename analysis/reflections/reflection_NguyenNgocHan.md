@@ -105,67 +105,104 @@ Phải đọc `requirements.txt` của thư viện cha trước khi nâng versio
 
 ## Phần 3: Action Plan cho Project cá nhân (Application Plan)
 
-### Project: Trợ lý tra cứu nội bộ (nội quy nhân viên + tài liệu phòng ban)
+### Project: Trợ lý tra cứu tương tác thuốc (Drug Interaction Lookup Assistant)
 
 #### 1. Hiện trạng
-- **Pipeline hiện tại:** mới chỉ là lab — 26 tài liệu markdown trong `data/`, chạy offline bằng in-memory
-  Qdrant. Chưa có API, chưa có người dùng thật, chưa có vòng lặp feedback.
-- **Vấn đề / Bottlenecks đã thấy:**
-  - 2 file PDF scan bị bỏ qua hoàn toàn → mất nguồn luật về bảo vệ dữ liệu cá nhân.
-  - 4/20 câu hỏi hỏng vì **corpus mâu thuẫn phiên bản** (chính sách bị thay thế).
-  - Câu hỏi multi-hop (cần 2 tài liệu) hỏng vì `RERANK_TOP_K=3` không đủ.
-  - Câu hỏi cần tính toán bị LLM tính sai (thiếu mẫu pro-rata).
-  - Chunking tách theo câu làm rơi các **điều kiện phụ** nằm rải rác trong tài liệu.
 
-#### 2. Kế hoạch cải thiến
+- **Pipeline hiện tại:** chưa có hệ thống nào chạy được — đây là project mới, thiết kế dựa trên những gì
+  lab hôm nay đã chứng minh. Khác biệt cốt lõi so với lab: truy vấn không phải câu hỏi tự nhiên mà là
+  **cặp thuốc** (A + B → có tương tác gì, mức độ nào?), và corpus là nhãn thuốc (SmPC), cơ sở dữ liệu
+  tương tác, tài liệu hướng dẫn lâm sàng.
+- **Known issues / rủi ro đã thấy rõ trong lab — sẽ lặp lại y hệt nếu không xử lý trước:**
+  - **Corpus mâu thuẫn phiên bản.** Lab hỏng 4/20 câu vì có cả v1 và v2 cùng tồn tại. Với thuốc, điều này
+    nghiêm trọng hơn nhiều: nhãn thuốc được cập nhật, cảnh báo mới được thêm. Trả lời theo nhãn cũ là
+    thông tin lâm sàng sai.
+  - **Reranker hỏng âm thầm.** FlashRank English-only làm hỏng thứ hạng mà hệ thống vẫn báo thành công
+    (context recall mất 0.208). Ở bài toán tổng quát đó là điểm số tệ; ở đây nó là thứ hạng sai
+    trong danh sách tương tác.
+  - **Mất điều kiện phụ.** Lab rơi điều kiện "3 báo giá" vì chunking cắt sai. Với thuốc, rơi điều kiện
+    "giảm liều ở người suy thận" hoặc "chống chỉ định ở phụ nữ mang thai" là rủi ro cho bệnh nhân.
+  - **Câu hỏi multi-hop hỏng** vì `RERANK_TOP_K=3` không đủ — tương tác thuốc đòi hỏi thông tin từ nhiều
+    nguồn (nhãn A, nhãn B, cơ chế CYP).
+  - **LLM tính sai số học.** Lab chứng minh LLM quy đổi pro-rata sai (failure #3). Liều dùng, khoảng cách
+    giữa hai liều, tính theo cân nặng — phải có công cụ kiểm tra, không để LLM tự suy luận.
 
-1. **Chunking strategy:** **Structure-aware làm chính**, hierarchical làm lớp phụ.
-   - Lý do: corpus có bảng lương, bảng ngưỡng phê duyệt, danh sách điều kiện — cắt theo câu làm rơi
-     điều kiện phụ (chính là failure #4, #5). Structure-aware giữ nguyên section + bảng.
-   - Bổ sung: **metadata versioning** (`effective_date`, `supersedes`) để loại bản cũ ngay ở tầng index.
+#### 2. Kế hoạch áp dụng
 
-2. **Search retrieval:** **Hybrid BM25 + Dense + RRF**, giữ nguyên.
-   - BM25 cho từ khóa chính xác (mã số, ngày, ngưỡng tiền); Dense cho paraphrase.
-   - Nâng lên **multilingual embedding** (`BAAI/bge-m3`, 1024-dim) thay `all-MiniLM-L6-v2` khi có
-   tài nguyên — model hiện tại là điểm yếu đã biết.
-   - Thêm **metadata filter** (category, effective_date) trước khi rerank.
+1. [ ] **Chunking strategy: structure-aware theo mục thuốc, không theo câu**
+   - Chia theo mục cố định của nhãn thuốc (Chỉ định, Chống chỉ định, Tương tác thuốc, Thận trọng, Tác dụng
+     phụ, Liều dùng). Mỗi mục là một đơn vị ngữ nghĩa, không cắt lẫn nhau.
+   - Quan trọng nhất: **mục "Tương tác thuốc" phải tách thành từng interaction record riêng** — mỗi bản
+     ghi là một cặp (thuốc A, thuốc B) + cơ chế + mức độ. Đây là đơn vị nhỏ nhất có nghĩa; chunk theo câu sẽ
+     gộp nhiều cặp vào một chunk và làm RRF/rerank mất tác dụng.
+   - Metadata bắt buộc: `generic_name`, `brand_names`, `atc_code`, `drug_class`, `cyp_enzyme`,
+     `severity` (contraindicated/major/moderate/minor), `evidence_level`, `label_version`, `source`.
+   - Thêm `effective_date` / `supersedes` để loại nhãn cũ ngay ở tầng index — bài học trực tiếp từ lab.
 
-3. **Reranking:** **Có**, dùng `bge-reranker-v2-m3`. Không dùng FlashRank cho tiếng Việt.
-   - Giảm latency: rerank top-10 thay vì top-20, cache theo (query, chunk_id), gọi ở async batch.
+2. [ ] **Search: Hybrid BM25 + Dense + RRF, nhưng bắt buộc có entity linking trước**
+   - Giữ hybrid + RRF — lab đo được context recall +0.32 so với baseline.
+   - **Chuẩn hoá tên thuốc trước khi search.** "Paracetamol" = "Acetaminophen" = "Panadol". Nếu không
+     ánh xạ về generic name, BM25 không match giữa cách viết của người dùng và nhãn thuốc — cùng lỗi
+     "nghỉ_phép" (1 token) vs "nghỉ phép" (2 token) đã gặp ở M2.
+   - Index **cả ba lớp tên**: hoạt chất gốc (INN), tên thương mại, tên lớp thuốc.
+   - Metadata filter theo `severity` và `effective_date` trước khi rerank.
 
-4. **Evaluation:** **RAGAS 4 metrics** + bộ test nội bộ.
-   - Mở rộng test set lên ~100 câu, giữ tỉ lệ 6 loại (lookup, version, negation, multi-hop, numeric,
-     ambiguous) như lab.
-   - Thêm **golden set do domain expert** viết để RAGAS không phải nguồn duy nhất (RAGAS dùng LLM
-     judge, điểm dao động ±0.05–0.10 giữa các lần chạy — tôi quan sát được điều này).
-   - **CI gate**: chặn merge nếu context recall < 0.80.
+3. [ ] **Reranking: có, cross-encoder đa ngôn ngữ + truy vấn theo cặp**
+   - Dùng `bge-reranker-v2-m3`. **Không dùng FlashRank** — chỉ hỗ trợ tiếng Anh, lab đã đo mất 0.208
+     context recall.
+   - Với truy vấn cặp A+B: **retrieve riêng theo từng thuốc rồi giao (intersect)**, không dựa vào một
+     thứ hạng phẳng cho cả cặp. Nếu không, chunk của A ngấn ngang đẩy chunk của B ra khỏi top-k.
+   - Top-5 thay vì top-3 — lab đã chứng minh `RERANK_TOP_K=3` làm hỏng câu hỏi multi-hop.
 
-5. **Enrichment:** **Combined single-call** (`_enrich_single_call`) — 1 call/chunk, tiết kiệm 75% chi phí.
-   - Ưu tiên **contextual prepend** (tác động lớn nhất, giảm 49% retrieval failure theo Anthropic).
-   - HyQA cho câu hỏi dạng đối thoại; auto metadata để lọc theo category.
-   - Enrich **offline, chạy khi ingest** chứ không chạy mỗi lần query.
+4. [ ] **Evaluation: RAGAS + chỉ số lâm sàng riêng, tất yếu có kiểm thử phủ định**
+   - RAGAS 4 metrics làm chỉ số hệ thống, nhưng **chưa đủ cho y tế**. Thêm:
+     - **Pair recall** — có retrieve đúng bản ghi tương tác của cặp A-B không?
+     - **Severity accuracy** — phân loại mức độ có đúng không?
+     - **Abstention calibration** (chỉ số quyết định an toàn): với cặp **không có tương tác**, hệ thống
+       phải trả lời "không ghi nhận" chứ không bịa. Đo **false-negative rate** — tỉ lệ bỏ sót một tương
+       tác nguy hiểm. Chỉ số này quan trọng hơn điểm trung bình.
+   - Test set bắt buộc phải có **cả cặp âm** (không tương tác). Nếu chỉ test cặp có tương tác, hệ thống
+     học cách đoán "có" cho mọi thứ — và điểm trung bình vẫn đẹp trong khi hành vi sai.
+   - Đối chiếu với nhãn thuốc chính thức; một phần bộ test cần dược sĩ review.
+   - CI gate: chặn deploy nếu false-negative rate vượt ngưỡng, **kể cả khi RAGAS vẫn đẹp**.
+
+5. [ ] **Enrichment: combined single-call, chạy offline lúc ingest**
+   - 1 call/chunk thay vì 4 — tiết kiệm 75% chi phí, giữ nguyên như lab.
+   - Extract metadata phục vụ an toàn: `drug_class`, `cyp_enzyme`, `mechanism`, `severity`,
+     `evidence_level`. Dùng để lọc, và để **hiển thị nguồn trích dẫn cho người dùng** — mỗi khẳng định
+     phải truy được về nhãn thuốc cụ thể.
+   - **Contextual prepend** để chunk 256 chars "trần trụi" nắm được nó đang nói về cặp thuốc nào.
+   - Enrich lúc **ingest**, không phải mỗi query.
+   - Bổ sung **công cụ tính liều** có kiểm tra thay vì để LLM tự nhân — lab đã chứng minh LLM tính sai.
 
 #### 3. Timeline triển khai
 
-- **Tuần 1 — nền tảng dữ liệu:** thêm OCR cho PDF scan; gắn `effective_date`/`supersedes` cho mọi
-  chính sách; dựng bộ test 100 câu có ground truth. *Đây là bước quyết định — mọi tối ưu sau đều vô
-  nghĩa nếu corpus mâu thuẫn chưa được xử lý.*
-- **Tuần 2 — chất lượng retrieval:** chuyển sang structure-aware chunking; nâng embedding lên `bge-m3`;
-  thêm metadata filter; thêm multi-hop decomposition (tách sub-query, retrieve riêng, union).
-- **Tuần 3 — generation:** thêm mẫu pro-rata cho câu hỏi tính toán; chỉ dẫn ưu tiên chính sách hiện
-  hành trong prompt; `temperature=0`.
-- **Tuần 4 — vận hành:** tối ưu latency (async, cache, rerank top-10); CI gate chất lượng; log để
-  thu thập câu hỏi người dùng thật và bổ sung vào test set.
+- **Tuần 1 — dữ liệu & chuẩn hoá:** lấy nguồn nhãn thuốc + cơ sở dữ liệu tương tác; xây bảng ánh xạ
+  generic ↔ brand ↔ ATC; gắn `label_version` / `supersedes`; dựng test set ~150 cặp (**có cả cặp âm**).
+  *Bước quyết định — không chuẩn hoá tên thuốc thì mọi tối ưu sau đều vô nghĩa.*
+- **Tuần 2 — chất lượng retrieval:** structure-aware chunking theo mục; tách interaction record;
+  entity linking; truy vấn cặp (retrieve A, retrieve B, intersect); nâng top-k lên 5.
+- **Tuần 3 — lớp an toàn:** abstention và phát hiện "không có tương tác"; công cụ tính liều; trích dẫn
+  nguồn cho từng khẳng định; hiển thị rõ mức độ nghiêm trọng; `temperature=0`.
+- **Tuần 4 — đánh giá & vận hành:** chạy RAGAS + chỉ số lâm sàng; dược sĩ review một phần bộ test; CI gate
+  theo false-negative rate; log câu hỏi thật (đã ẩn danh) để bổ sung vào test set.
 
 #### 4. Bài học mang về
 
-RAG không phải "cứ dùng model mạnh là xong". Trong lab này **ranking bị phá hỏng bởi một model không hỗ trợ
-tiếng Việt** — và nó suýt bị bỏ qua vì hệ thống vẫn exit code 0 và vẫn in ra điểm số. Nếu không
-**đo từng tầng riêng biệt**, mình sẽ đi tối ưu sai (thêm prompt, đổi chunking) trong khi nguyên nhân
-thật nằm ở model.
+RAG không phải "cứ dùng model mạnh là xong". Trong lab này **thứ hạng bị phá hỏng bởi một model không hỗ trợ
+tiếng Việt** — và nó suýt bị bỏ qua vì hệ thống vẫn exit code 0 và vẫn in ra điểm số. Nếu không **đo từng
+tầng riêng biệt**, mình sẽ đi tối ưu sai (thêm prompt, đổi chunking) trong khi nguyên nhân thật nằm ở model.
 
-Ba nguyên tắc mình rút ra:
+Áp vào bài toán tương tác thuốc, bài học này nặng hơn hẳn: **một hệ thống trông bình thường nhưng xếp hạng
+sai thì nguy hiểm hơn một hệ thống báo lỗi**. Trong y tế, thứ tệ nhất không phải là "hỏng", mà là **trả lời
+tự tin nhưng sai**.
+
+Bốn nguyên tắc mình rút ra:
 1. **Đo từng tầng, không đo tổng** — retrieval đúng + rerank sai vẫn ra câu trả lời sai.
 2. **Kiểm chứng giả định bằng test nhỏ** — 10 dòng test English-only tiết kiệm hàng giờ debug mù.
-3. **Đừng nuôi dữ liệu bẩn** — 4/20 câu hỏi hỏng vì corpus có 2 phiên bản mâu thuẫn, không phải vì
-   thuật toán kém.
+3. **Đừng nuôi dữ liệu bẩn, và đừng chỉ nhìn điểm trung bình** — 4/20 câu hỏi hỏng vì corpus có hai phiên
+   bản mâu thuẫn; tương tác thuốc cần chỉ số **phủ định** (bỏ sót bao nhiêu tương tác nguy hiểm), không
+   chỉ điểm trung bình.
+4. **Thiết kế để hệ thống được phép nói "không biết"** — trong lab, khi context mâu thuẫn, LLM đã tự trả
+   lời "Không tìm thấy" và mình đánh dấu đó là lỗi. Sang dự án này mình đánh giá ngược lại: đó là hành vi
+   an toàn. Trong y tế, khả năng từ chối trả lời là một tính năng, không phải điểm trừ.
